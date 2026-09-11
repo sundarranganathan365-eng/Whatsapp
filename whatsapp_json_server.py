@@ -169,6 +169,7 @@ def make_reminder_call(to_number, reminder_text):
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 @app.route("/whatsapp", methods=["POST"])
+@app.route("/api/whatsapp", methods=["POST"])
 def whatsapp_webhook():
     if not request.form:
         abort(400)

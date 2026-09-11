@@ -1,0 +1,125 @@
+// Prisma Schema for WhatsApp Attendance Bot (PostgreSQL)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Class / Department / Section
+model Class {
+  id          String   @id @default(uuid())
+  name        String   // e.g. "Grade 10", "Computer Science 101"
+  section     String?  // e.g. "Section A"
+  teacherName String?  @map("teacher_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  students    Student[]
+  attendance  AttendanceRecord[]
+
+  @@map("classes")
+}
+
+/// Student / Employee / Member
+model Student {
+  id             String   @id @default(uuid())
+  rollNumber     String   @unique @map("roll_number") // Unique Student ID / Roll No.
+  name           String
+  whatsappNumber String   @unique @map("whatsapp_number") // e.g. whatsapp:+14155552671
+  parentPhone    String?  @map("parent_phone")
+  classId        String?  @map("class_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  class          Class?             @relation(fields: [classId], references: [id], onDelete: SetNull)
+  attendance     AttendanceRecord[]
+  leaveRequests  LeaveRequest[]
+  messages       WhatsAppMessage[]
+
+  @@map("students")
+}
+
+/// Daily Attendance Records
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  studentId String           @map("student_id")
+  classId   String?          @map("class_id")
+  date      DateTime         @db.Date
+  status    AttendanceStatus @default(PRESENT)
+  timeIn    DateTime?        @map("time_in")
+  timeOut   DateTime?        @map("time_out")
+  remarks   String?          @db.Text
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class     Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, date])
+  @@map("attendance_records")
+}
+
+/// Leave Requests submitted via WhatsApp
+model LeaveRequest {
+  id        String      @id @default(uuid())
+  studentId String      @map("student_id")
+  startDate DateTime    @map("start_date") @db.Date
+  endDate   DateTime    @map("end_date") @db.Date
+  reason    String      @db.Text
+  status    LeaveStatus @default(PENDING)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("leave_requests")
+}
+
+/// WhatsApp Interaction Logs (Webhook audit trail)
+model WhatsAppMessage {
+  id          String   @id @default(uuid())
+  messageSid  String   @unique @map("message_sid")
+  studentId   String?  @map("student_id")
+  fromNumber  String   @map("from_number")
+  toNumber    String   @map("to_number")
+  messageBody String   @map("message_body") @db.Text
+  response    String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@map("whatsapp_messages")
+}
+
+/// Summary Reports generated for Parents/Teachers
+model AttendanceReport {
+  id           String   @id @default(uuid())
+  title        String   // e.g. "Daily Attendance Summary - 2026-09-11"
+  reportDate   DateTime @map("report_date") @db.Date
+  totalPresent Int      @default(0) @map("total_present")
+  totalAbsent  Int      @default(0) @map("total_absent")
+  totalLate    Int      @default(0) @map("total_late")
+  summaryData  Json?    @map("summary_data")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("attendance_reports")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  HALF_DAY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
