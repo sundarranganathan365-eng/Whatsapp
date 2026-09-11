@@ -1,0 +1,8 @@
+google-genai>=0.1.1
+python-dotenv>=1.0.0
+pymupdf>=1.23.0
+python-docx>=1.0.0
+faiss-cpu>=1.7.4
+numpy>=1.24.0
+twilio==9.2.0
+Flask==3.0.3
